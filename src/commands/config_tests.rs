@@ -147,6 +147,24 @@ fn test_show_configuration_renders_external_servers() {
 }
 
 #[test]
+fn test_mcp_server_detail_labels() {
+	let core = McpServerConfig::builtin("core", 30, vec![]);
+	assert!(mcp_server_detail(&core).contains("built-in core tools"));
+
+	let agent = McpServerConfig::builtin("agent", 30, vec![]);
+	assert!(mcp_server_detail(&agent).contains("built-in agent tool"));
+
+	let custom = McpServerConfig::builtin("custom", 30, vec![]);
+	assert!(mcp_server_detail(&custom).contains("built-in tools"));
+
+	let http = McpServerConfig::http("remote", "https://example.com/mcp", 30, vec![]);
+	assert!(mcp_server_detail(&http).contains("HTTP: https://example.com/mcp"));
+
+	let stdio = McpServerConfig::stdin("local", "node", vec![], 30, vec![]);
+	assert!(mcp_server_detail(&stdio).contains("Command: node"));
+}
+
+#[test]
 fn test_validate_invalid_config_returns_error() {
 	let mut config = template_config();
 	config.model.clear();

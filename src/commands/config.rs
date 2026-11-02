@@ -458,26 +458,7 @@ pub fn execute(args: &ConfigArgs, mut config: Config) -> Result<(), anyhow::Erro
 		block_section("mcp servers");
 		for server in &config.mcp.servers {
 			let name = server.name();
-			let effective_type = match name {
-				"core" | "agent" => McpConnectionType::Builtin,
-				_ => server.connection_type(),
-			};
-			let detail = match effective_type {
-				McpConnectionType::Builtin => match name {
-					"core" => "built-in core tools".dimmed().to_string(),
-					"agent" => "built-in agent tool".dimmed().to_string(),
-					_ => "built-in tools".dimmed().to_string(),
-				},
-				McpConnectionType::Http | McpConnectionType::Stdin => {
-					if let Some(url) = server.url() {
-						format!("HTTP: {}", url).dimmed().to_string()
-					} else if let Some(command) = server.command() {
-						format!("Command: {}", command).dimmed().to_string()
-					} else {
-						"external (not configured)".yellow().to_string()
-					}
-				}
-			};
+			let detail = mcp_server_detail(server);
 			block_row_text(&format!("{}  {}", name.bright_white(), detail));
 		}
 	}
@@ -747,26 +728,7 @@ fn show_configuration(config: &Config) -> Result<(), anyhow::Error> {
 		block_section("mcp servers");
 		for server in &config.mcp.servers {
 			let name = server.name();
-			let effective_type = match name {
-				"core" | "agent" => McpConnectionType::Builtin,
-				_ => server.connection_type(),
-			};
-			let detail = match effective_type {
-				McpConnectionType::Builtin => match name {
-					"core" => "built-in core tools".dimmed().to_string(),
-					"agent" => "built-in agent tool".dimmed().to_string(),
-					_ => "built-in tools".dimmed().to_string(),
-				},
-				McpConnectionType::Http | McpConnectionType::Stdin => {
-					if let Some(url) = server.url() {
-						format!("HTTP: {}", url).dimmed().to_string()
-					} else if let Some(command) = server.command() {
-						format!("Command: {}", command).dimmed().to_string()
-					} else {
-						"external (not configured)".yellow().to_string()
-					}
-				}
-			};
+			let detail = mcp_server_detail(server);
 			block_row_text(&format!("{}  {}", name.bright_white(), detail));
 			if server.timeout_seconds() != DEFAULT_MCP_TIMEOUT_SECONDS {
 				block_row_text(&format!("  timeout: {}s", server.timeout_seconds()).dimmed().to_string());
@@ -780,6 +742,30 @@ fn show_configuration(config: &Config) -> Result<(), anyhow::Error> {
 	block_close_ok("config", Some(&config.get_effective_model()));
 	println!();
 	Ok(())
+}
+
+fn mcp_server_detail(server: &McpServerConfig) -> String {
+	let name = server.name();
+	let effective_type = match name {
+		"core" | "agent" => McpConnectionType::Builtin,
+		_ => server.connection_type(),
+	};
+	match effective_type {
+		McpConnectionType::Builtin => match name {
+			"core" => "built-in core tools".dimmed().to_string(),
+			"agent" => "built-in agent tool".dimmed().to_string(),
+			_ => "built-in tools".dimmed().to_string(),
+		},
+		McpConnectionType::Http | McpConnectionType::Stdin => {
+			if let Some(url) = server.url() {
+				format!("HTTP: {}", url).dimmed().to_string()
+			} else if let Some(command) = server.command() {
+				format!("Command: {}", command).dimmed().to_string()
+			} else {
+				"external (not configured)".yellow().to_string()
+			}
+		}
+	}
 }
 
 #[cfg(test)]
