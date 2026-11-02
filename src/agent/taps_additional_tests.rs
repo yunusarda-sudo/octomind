@@ -238,6 +238,42 @@ fn add_tap_local_symlinks_and_persists() {
 
 #[serial]
 #[test]
+fn add_tap_local_relative_path_canonicalizes_symlink() {
+	let _data = DataDirGuard::new();
+	let temp = tempfile::tempdir().expect("tempdir");
+	let tap_source = temp.path().join("my-tap");
+	fs::create_dir(&tap_source).expect("create my-tap dir");
+
+	let previous_cwd = std::env::current_dir().expect("cwd");
+	std::env::set_current_dir(temp.path()).expect("chdir");
+	struct CwdGuard(std::path::PathBuf);
+	impl Drop for CwdGuard {
+		fn drop(&mut self) {
+			let _ = std::env::set_current_dir(&self.0);
+		}
+	}
+	let _cwd = CwdGuard(previous_cwd);
+
+	add_tap("alice/tools my-tap").expect("add local tap with relative path");
+
+	let dir = tap_dir_for("alice/tools");
+	let link = fs::read_link(&dir).expect("read symlink");
+	assert!(
+		link.is_absolute(),
+		"symlink target must be absolute: {}",
+		link.display()
+	);
+	let expected = std::env::current_dir().unwrap().join("my-tap");
+	assert_eq!(link, expected);
+
+	let listed = list_taps().unwrap();
+	assert_eq!(listed.len(), 1);
+	assert_eq!(listed[0].name, "alice/tools");
+	assert_eq!(listed[0].local_path.as_deref(), Some(expected.to_str().unwrap()));
+}
+
+#[serial]
+#[test]
 fn add_tap_local_missing_directory_errors() {
 	let _data = DataDirGuard::new();
 	let missing = std::env::temp_dir().join("octomind-definitely-missing-tap-src");

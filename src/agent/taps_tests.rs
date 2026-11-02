@@ -52,6 +52,12 @@ fn test_expand_path() {
 	assert_eq!(expand_path("/abs/path").expect("absolute"), PathBuf::from("/abs/path"));
 	let cwd = std::env::current_dir().expect("cwd");
 	assert_eq!(expand_path("./rel").expect("relative"), cwd.join("rel"));
+	assert_eq!(expand_path(".").expect("dot"), cwd.join("."));
+	assert!(expand_path(".").expect("dot").is_absolute());
+	assert_eq!(expand_path("rel").expect("bare relative"), cwd.join("rel"));
+	assert!(expand_path("rel").expect("bare relative").is_absolute());
+	assert_eq!(expand_path("../x").expect("parent relative"), cwd.join("../x"));
+	assert!(expand_path("../x").expect("parent relative").is_absolute());
 }
 
 #[test]

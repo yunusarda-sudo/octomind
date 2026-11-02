@@ -165,7 +165,7 @@ fn refresh_due(tap_dir: &Path) -> bool {
 	}
 }
 
-/// Expand a path that may contain `~` or `./`.
+/// Expand a path that may contain `~` or be relative to the current directory.
 fn expand_path(path: &str) -> Result<PathBuf> {
 	if let Some(stripped) = path.strip_prefix("~/") {
 		let home = dirs::home_dir().context("Cannot determine home directory")?;
@@ -174,7 +174,13 @@ fn expand_path(path: &str) -> Result<PathBuf> {
 		let cwd = std::env::current_dir().context("Cannot determine current directory")?;
 		Ok(cwd.join(stripped))
 	} else {
-		Ok(PathBuf::from(path))
+		let p = Path::new(path);
+		if p.is_relative() {
+			let cwd = std::env::current_dir().context("Cannot determine current directory")?;
+			Ok(cwd.join(p))
+		} else {
+			Ok(p.to_path_buf())
+		}
 	}
 }
 
@@ -350,7 +356,7 @@ pub fn fetch_workflow(name: &str) -> Result<(String, String)> {
 ///
 /// Format: `user/repo` or `user/repo /path/to/local`
 pub fn add_tap(arg: &str) -> Result<()> {
-	let tap = parse_tap_arg(arg)?;
+	let mut tap = parse_tap_arg(arg)?;
 
 	if tap.name == DEFAULT_TAP {
 		anyhow::bail!(
@@ -366,12 +372,13 @@ pub fn add_tap(arg: &str) -> Result<()> {
 
 	let tap_dir = tap.local_dir()?;
 
-	if let Some(ref local_path) = tap.local_path {
+	if let Some(local_path) = tap.local_path.take() {
 		// Local tap: create a symlink so the tap dir always reflects the live local directory.
-		let target = expand_path(local_path)?;
+		let target = expand_path(&local_path)?;
 		if !target.exists() {
 			anyhow::bail!("Local tap directory does not exist: {}", target.display());
 		}
+		tap.local_path = Some(target.display().to_string());
 		// Create parent dirs (e.g. ~/.local/share/octomind/taps/user/)
 		if let Some(parent) = tap_dir.parent() {
 			fs::create_dir_all(parent).context(format!("Failed to create tap parent dir: {}", parent.display()))?;
